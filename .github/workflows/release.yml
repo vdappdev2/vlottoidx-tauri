@@ -1,0 +1,151 @@
+name: Release Builds
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch: # Allows manual triggering
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.id }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: vLottoIDX ${{ github.ref_name }}
+          body: |
+            ## Changes
+            See [CHANGELOG.md](https://github.com/vdappdev2/vlottoidx-tauri/blob/main/CHANGELOG.md) for details.
+            
+            ## Installation
+
+            ### macOS
+            1. Download `vLottoIDX_${{ github.ref_name }}_universal.dmg`
+            2. If you see "unidentified developer" warning: Right-click → Open → Open
+
+            ### Windows
+            1. Download `vLottoIDX_${{ github.ref_name }}_x64_setup.msi`
+            2. If Windows Defender blocks: Click "More info" → "Run anyway"
+
+            ### Linux
+            1. **AppImage**: Download `vlottoidx_${{ github.ref_name }}_amd64.AppImage`
+               ```bash
+               chmod +x vlottoidx_*.AppImage
+               ./vlottoidx_*.AppImage
+               ```
+            2. **Debian/Ubuntu**: Download `vlottoidx_${{ github.ref_name }}_amd64.deb`
+               ```bash
+               sudo dpkg -i vlottoidx_*.deb
+               ```
+            
+            ## Requirements
+            - Local Verus daemon with RPC enabled
+            - macOS 10.15+, Windows 10+, or Linux (Ubuntu 18.04+)
+            
+            ---
+            🤖 Generated with [Claude Code](https://claude.ai/code)
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+
+  build-binaries:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target universal-apple-darwin'
+            artifact_name: 'macos-universal'
+            file_extension: '.dmg'
+            
+          - platform: 'ubuntu-22.04'
+            args: '--target x86_64-unknown-linux-gnu'
+            artifact_name: 'linux-x86_64'
+            file_extension: '.AppImage'
+            
+          - platform: 'windows-latest'
+            args: '--target x86_64-pc-windows-msvc'
+            artifact_name: 'windows-x86_64'
+            file_extension: '.msi'
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libsoup-3.0-dev \
+            javascriptcoregtk-4.1 \
+            libjavascriptcoregtk-4.1-dev
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Tauri application
+        run: npm run tauri build -- ${{ matrix.args }}
+
+      - name: Find built files
+        id: find_files
+        shell: bash
+        run: |
+          if [[ "${{ matrix.platform }}" == "macos-latest" ]]; then
+            DMG_PATH=$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
+            echo "file_path=$DMG_PATH" >> $GITHUB_OUTPUT
+            echo "file_name=vLottoIDX_${{ github.ref_name }}_universal.dmg" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.platform }}" == "ubuntu-22.04" ]]; then
+            APPIMAGE_PATH=$(find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage -name "*.AppImage" | head -1)
+            echo "file_path=$APPIMAGE_PATH" >> $GITHUB_OUTPUT
+            echo "file_name=vlottoidx_${{ github.ref_name }}_amd64.AppImage" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
+            MSI_PATH=$(find src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi -name "*.msi" | head -1)
+            echo "file_path=$MSI_PATH" >> $GITHUB_OUTPUT
+            echo "file_name=vLottoIDX_${{ github.ref_name }}_x64_setup.msi" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.find_files.outputs.file_path }}
+          asset_name: ${{ steps.find_files.outputs.file_name }}
+          asset_content_type: application/octet-stream

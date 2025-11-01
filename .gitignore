@@ -1,0 +1,175 @@
+# Dependencies
+node_modules/
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+build/
+dist/
+target/
+*.app
+*.exe
+*.msi
+*.deb
+*.AppImage
+*.dmg
+
+# Development
+.svelte-kit/
+.vite/
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+debug_output.log
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+temp_app/
+
+# Rust
+**/*.rs.bk
+*.pdb
+
+# Tauri
+src-tauri/target/
+src-tauri/WixTools/
+src-tauri/gen/
+
+# Security - Never commit credentials
+*.key
+*.pem
+*.p12
+*.pfx
+.env*
+secrets/
+credentials/
+
+# Project specific - Development files
+CLAUDE.md
+PRD.md
+CHARTS_PLAN.md
+http 400 issues production build.md
+toast implementation.md
+tradingview implementation.md
+VDXF-ContentMultimap-Reference.md
+contentmultimap vlotto.md
+vlotto-ledger-third-party-guide.html
+vlotto-ledger-third-party-guide-updated.html
+vlotto-implementation.md
+roadmap.md
+tcpdump.md
+debug_output.log
+temp_app/
+
+# Development reference folders
+Verus RPC commands/
+docs/
+references/
+
+# Working files
+logo-mockup.svg
+logo-mockup.svg.png
+create_icon.py
+create_icon.sh
+fix_icon.sh
+
+# Icon temporary/working files
+src-tauri/icons/icon_backup.png
+src-tauri/icons/icon_new.icns
+src-tauri/icons/icon_new.png
+src-tauri/icons/icon_padded.png
+src-tauri/icons/icon_small.png
+src-tauri/icons/icon_temp.png
+
+# Test routes
+src/routes/test/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Backup files
+*.backup
+*.bak
+*.orig
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Editor backup files
+*~
+\#*\#
+.\#*
+
+# macOS specific
+.AppleDouble
+.LSOverride
+Icon
+.DocumentRevisions-V100
+.fseventsd
+.TemporaryItems
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows specific
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux specific
+.directory
+.Trash-*/
+.nfs*
