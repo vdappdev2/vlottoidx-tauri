@@ -604,7 +604,7 @@ pub async fn convert_currency(
         .map_err(|e| e.to_string())
 }
 
-// Simplified conversion specifically for agents funding
+// Simplified conversion specifically for VerusIDX funding
 #[tauri::command]
 pub async fn convert_to_verusidx(
     from_address: String,
@@ -615,12 +615,9 @@ pub async fn convert_to_verusidx(
 ) -> Result<Value, String> {
     let client_guard = state.active_client.read().await;
     let client = client_guard.as_ref().ok_or("No active RPC connection")?;
-    
-    // Fixed target currency for agents funding
-    // Testing configuration
-    client.convert_currency(&from_address, &source_currency, amount, "agents", &to_address)
-    // Production configuration
-    // client.convert_currency(&from_address, &source_currency, amount, "VerusIDX", &to_address)
+
+    // Production configuration - convert to VerusIDX
+    client.convert_currency(&from_address, &source_currency, amount, "VerusIDX", &to_address)
         .await
         .map(|opid| serde_json::Value::String(opid))
         .map_err(|e| e.to_string())

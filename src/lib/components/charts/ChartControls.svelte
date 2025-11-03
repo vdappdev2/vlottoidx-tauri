@@ -53,12 +53,12 @@
         verbose: true
       });
 
-      // Filter for basket currencies using bitmask values, excluding bricked ones
+      // Filter for basket currencies, gateways, and gateway converters using bitmask values, excluding bricked ones
       basketCurrencies = (response as any[]).filter((currency: any) => {
         const options = currency.currencydefinition?.options || 0;
         const flags = currency.flags || 0;
-        // Basket currency bitmask values (same as in CurrencyListCard), excluding bricked (flags === 37)
-        return [33, 35, 41, 43, 49, 51, 57, 59].includes(options) && flags !== 37;
+        // Basket currency bitmask values (same as in CurrencyListCard), plus gateways (128, 136) and gateway converters (545), excluding bricked (flags === 37)
+        return ([33, 35, 41, 43, 49, 51, 57, 59, 128, 136, 545].includes(options)) && flags !== 37;
       });
     } catch (error: any) {
       console.error('Failed to load basket currencies:', error);

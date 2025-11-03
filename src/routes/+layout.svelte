@@ -28,10 +28,11 @@
   // Determine if we should show navigation
   // Hide on landing, access, and onboard pages
   let showNavigation = $derived(
-    isConnected && 
-    currentPath !== '/' && 
-    currentPath !== '/access' && 
-    currentPath !== '/onboard-subid'
+    isConnected &&
+    currentPath !== '/' &&
+    currentPath !== '/access' &&
+    currentPath !== '/onboard-subid' &&
+    currentPath !== '/onboard-verusidx'
   );
 </script>
 

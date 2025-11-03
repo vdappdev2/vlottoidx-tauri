@@ -42,6 +42,10 @@
   let searchResultsPerPage = $state(10);
   let hasSearched = $state(false);
 
+  // User offers pagination
+  let userOffersPage = $state(1);
+  let userOffersPerPage = $state(10);
+
   // Modal state
   let isOfferModalOpen = $state(false);
   let offerModalMode = $state<'make' | 'take'>('make');
@@ -150,13 +154,19 @@
     }
   }
 
-  function getFilteredAndSortedSearchResults() {
+  function isOfferExpiredFromSearch(offer: any): boolean {
+    // Check if offer is expired - this would need proper block height comparison
+    return offer.offer?.expired === true;
+  }
+
+  // Reactive computed values for filtering, sorting, and pagination
+  let filteredAndSortedSearchResults = $derived.by(() => {
     let filtered = searchResults.filter(offer => {
       // Filter by expiry
       if (!searchForm.showExpired && isOfferExpiredFromSearch(offer)) {
         return false;
       }
-      
+
       return true;
     });
 
@@ -196,22 +206,16 @@
     }
 
     return filtered;
-  }
+  });
 
-  function isOfferExpiredFromSearch(offer: any): boolean {
-    // Check if offer is expired - this would need proper block height comparison
-    return offer.offer?.expired === true;
-  }
+  let paginatedSearchResults = $derived(
+    filteredAndSortedSearchResults.slice(
+      (searchResultsPage - 1) * searchResultsPerPage,
+      searchResultsPage * searchResultsPerPage
+    )
+  );
 
-  function getPaginatedSearchResults() {
-    const startIndex = (searchResultsPage - 1) * searchResultsPerPage;
-    const endIndex = startIndex + searchResultsPerPage;
-    return getFilteredAndSortedSearchResults().slice(startIndex, endIndex);
-  }
-
-  function getTotalSearchPages() {
-    return Math.ceil(getFilteredAndSortedSearchResults().length / searchResultsPerPage);
-  }
+  let totalSearchPages = $derived(Math.ceil(filteredAndSortedSearchResults.length / searchResultsPerPage));
 
   function clearSearch() {
     searchForm.query = '';
@@ -241,6 +245,18 @@
     // Reset to first page when filter changes
     searchResultsPage = 1;
   }
+
+  // Reset to page 1 when results per page changes
+  $effect(() => {
+    searchResultsPerPage;
+    searchResultsPage = 1;
+  });
+
+  // Reset to page 1 when user offers per page changes
+  $effect(() => {
+    userOffersPerPage;
+    userOffersPage = 1;
+  });
 
   async function closeOffer(txid: string) {
     if (!connectionState.selectedChain || isClosingOffer === txid) return;
@@ -321,8 +337,7 @@
   }
 
   function selectAllOffers() {
-    const filteredOffers = getFilteredAndSortedOffers();
-    filteredOffers.forEach(offer => selectedOffers.add(offer.txid));
+    filteredAndSortedOffers.forEach(offer => selectedOffers.add(offer.txid));
     selectedOffers = new Set(selectedOffers);
   }
 
@@ -464,7 +479,8 @@
     return false; // All offers from listopenoffers are considered active unless we have block height comparison
   }
 
-  function getFilteredAndSortedOffers() {
+  // Reactive computed values for user offers filtering, sorting, and pagination
+  let filteredAndSortedOffers = $derived.by(() => {
     let filtered = userOffers.filter(offer => {
       if (offerFilter === 'active') return !isOfferExpired(offer);
       if (offerFilter === 'expired') return isOfferExpired(offer);
@@ -490,7 +506,16 @@
           return (b.txid || '').localeCompare(a.txid || '');
       }
     });
-  }
+  });
+
+  let paginatedUserOffers = $derived(
+    filteredAndSortedOffers.slice(
+      (userOffersPage - 1) * userOffersPerPage,
+      userOffersPage * userOffersPerPage
+    )
+  );
+
+  let totalUserOffersPages = $derived(Math.ceil(filteredAndSortedOffers.length / userOffersPerPage));
 
   function openMakeOfferModal() {
     offerModalMode = 'make';
@@ -629,14 +654,34 @@
     <!-- Your Active Offers (Primary Display) -->
     <div class="bg-white dark:bg-verusidx-stone-dark rounded-lg shadow-xl p-6">
       <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold text-verusidx-stone-dark dark:text-white">Your Active Offers</h2>
-        <button
-          onclick={loadUserOffers}
-          disabled={isLoadingOffers}
-          class="px-4 py-2 text-sm bg-verusidx-mountain-blue hover:bg-verusidx-lake-blue text-white rounded-lg transition-colors disabled:opacity-50"
-        >
-          {isLoadingOffers ? 'Loading...' : 'Refresh'}
-        </button>
+        <h2 class="text-xl font-bold text-verusidx-stone-dark dark:text-white">
+          Your Active Offers ({filteredAndSortedOffers.length})
+        </h2>
+        <div class="flex items-center space-x-4">
+          <!-- Results per page -->
+          {#if userOffers.length > 0}
+            <div class="flex items-center space-x-2">
+              <label class="text-sm text-verusidx-stone-dark dark:text-white">Show:</label>
+              <select
+                bind:value={userOffersPerPage}
+                class="px-2 py-1 text-sm border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+              <span class="text-sm text-verusidx-stone-dark dark:text-white">per page</span>
+            </div>
+          {/if}
+          <button
+            onclick={loadUserOffers}
+            disabled={isLoadingOffers}
+            class="px-4 py-2 text-sm bg-verusidx-mountain-blue hover:bg-verusidx-lake-blue text-white rounded-lg transition-colors disabled:opacity-50"
+          >
+            {isLoadingOffers ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       <!-- Filter and Sort Controls -->
@@ -669,7 +714,7 @@
           </div>
 
           <!-- Selection Controls -->
-          {#if getFilteredAndSortedOffers().length > 0}
+          {#if filteredAndSortedOffers.length > 0}
             <div class="flex items-center space-x-2 ml-auto">
               <button
                 onclick={selectAllOffers}
@@ -730,7 +775,7 @@
       {:else}
         <!-- Enhanced Offers List -->
         <div class="space-y-4">
-          {#each getFilteredAndSortedOffers() as offer}
+          {#each paginatedUserOffers as offer}
             <div class="border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg p-4 {selectedOffers.has(offer.txid) ? 'ring-2 ring-verusidx-turquoise-deep bg-verusidx-turquoise-light/10 dark:bg-verusidx-turquoise-deep/10' : ''}">
               <div class="flex items-start space-x-4">
                 <!-- Selection Checkbox -->
@@ -834,13 +879,38 @@
             </div>
           {/each}
         </div>
-        
+
         <!-- No offers after filtering -->
-        {#if getFilteredAndSortedOffers().length === 0}
+        {#if filteredAndSortedOffers.length === 0}
           <div class="text-center py-8">
             <p class="text-verusidx-mountain-grey dark:text-verusidx-mountain-mist">
               No offers match the current filter criteria.
             </p>
+          </div>
+        {/if}
+
+        <!-- Pagination -->
+        {#if totalUserOffersPages > 1}
+          <div class="flex justify-center items-center space-x-4 mt-6">
+            <button
+              onclick={() => userOffersPage = Math.max(1, userOffersPage - 1)}
+              disabled={userOffersPage === 1}
+              class="px-3 py-2 text-sm bg-verusidx-mountain-mist hover:bg-verusidx-mountain-grey text-verusidx-stone-dark dark:bg-verusidx-stone-medium dark:hover:bg-verusidx-stone-light dark:text-white rounded transition-colors disabled:opacity-50"
+            >
+              Previous
+            </button>
+
+            <span class="text-sm text-verusidx-stone-dark dark:text-white">
+              Page {userOffersPage} of {totalUserOffersPages}
+            </span>
+
+            <button
+              onclick={() => userOffersPage = Math.min(totalUserOffersPages, userOffersPage + 1)}
+              disabled={userOffersPage === totalUserOffersPages}
+              class="px-3 py-2 text-sm bg-verusidx-mountain-mist hover:bg-verusidx-mountain-grey text-verusidx-stone-dark dark:bg-verusidx-stone-medium dark:hover:bg-verusidx-stone-light dark:text-white rounded transition-colors disabled:opacity-50"
+            >
+              Next
+            </button>
           </div>
         {/if}
       {/if}
@@ -918,7 +988,7 @@
         <div class="mt-6">
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-semibold text-verusidx-stone-dark dark:text-white">
-              Search Results ({getFilteredAndSortedSearchResults().length} found)
+              Search Results ({filteredAndSortedSearchResults.length} found)
             </h3>
             
             <!-- Results per page -->
@@ -977,19 +1047,19 @@
               {/if}
             </div>
           </div>
-          
+
           <div class="flex flex-col gap-6 max-w-4xl mx-auto">
-            {#each getPaginatedSearchResults() as offer}
-              <OfferCard 
+            {#each paginatedSearchResults as offer}
+              <OfferCard
                 offerResult={offer}
                 onViewDetails={handleViewOfferDetails}
                 onTakeOffer={openTakeOfferModal}
               />
             {/each}
           </div>
-          
+
           <!-- Pagination -->
-          {#if getTotalSearchPages() > 1}
+          {#if totalSearchPages > 1}
             <div class="flex justify-center items-center space-x-4 mt-6">
               <button
                 onclick={() => searchResultsPage = Math.max(1, searchResultsPage - 1)}
@@ -998,14 +1068,14 @@
               >
                 Previous
               </button>
-              
+
               <span class="text-sm text-verusidx-stone-dark dark:text-white">
-                Page {searchResultsPage} of {getTotalSearchPages()}
+                Page {searchResultsPage} of {totalSearchPages}
               </span>
-              
+
               <button
-                onclick={() => searchResultsPage = Math.min(getTotalSearchPages(), searchResultsPage + 1)}
-                disabled={searchResultsPage === getTotalSearchPages()}
+                onclick={() => searchResultsPage = Math.min(totalSearchPages, searchResultsPage + 1)}
+                disabled={searchResultsPage === totalSearchPages}
                 class="px-3 py-2 text-sm bg-verusidx-mountain-mist hover:bg-verusidx-mountain-grey text-verusidx-stone-dark dark:bg-verusidx-stone-medium dark:hover:bg-verusidx-stone-light dark:text-white rounded transition-colors disabled:opacity-50"
               >
                 Next

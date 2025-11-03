@@ -12,7 +12,8 @@ export default {
           'mountain-blue': '#2d4a63',
           'stone-dark': '#364048',
           'stone-medium': '#5a6b7a',
-          
+          'stone-light': '#7a8a9a',
+
           // Lake/Water Colors
           'turquoise-deep': '#2d8080',
           'turquoise-bright': '#4da6a6',
