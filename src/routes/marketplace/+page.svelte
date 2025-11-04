@@ -775,7 +775,7 @@
       {:else}
         <!-- Enhanced Offers List -->
         <div class="space-y-4">
-          {#each paginatedUserOffers as offer}
+          {#each paginatedUserOffers as offer (offer.txid)}
             <div class="border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg p-4 {selectedOffers.has(offer.txid) ? 'ring-2 ring-verusidx-turquoise-deep bg-verusidx-turquoise-light/10 dark:bg-verusidx-turquoise-deep/10' : ''}">
               <div class="flex items-start space-x-4">
                 <!-- Selection Checkbox -->
@@ -1049,7 +1049,7 @@
           </div>
 
           <div class="flex flex-col gap-6 max-w-4xl mx-auto">
-            {#each paginatedSearchResults as offer}
+            {#each paginatedSearchResults as offer (offer.offer?.txid)}
               <OfferCard
                 offerResult={offer}
                 onViewDetails={handleViewOfferDetails}

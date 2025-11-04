@@ -1,13 +1,12 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { connectionStore, getChainParam } from '$lib/stores/connection';
   import { getIdentityFriendlyName, getCurrencyFriendlyName } from '$lib/stores/nameCache';
-  import { 
-    extractOfferFromSearchResult, 
-    formatOfferSummary, 
+  import {
+    extractOfferFromSearchResult,
+    formatOfferSummary,
     formatCryptoAmount,
     getOfferTypeIcon,
-    type ParsedOffer 
+    type ParsedOffer
   } from '$lib/utils/offerUtils';
 
   interface Props {
@@ -18,7 +17,9 @@
 
   let { offerResult, onViewDetails, onTakeOffer }: Props = $props();
 
-  let parsedOffer = $state<ParsedOffer | null>(null);
+  // Use $derived to automatically recalculate when offerResult prop changes
+  let parsedOffer = $derived(extractOfferFromSearchResult(offerResult));
+
   let displayNames = $state({
     offering: '',
     accepting: ''
@@ -30,15 +31,13 @@
     connectionState = state;
   });
 
-  onMount(async () => {
+  // Use $effect to trigger side effects when parsedOffer changes
+  $effect(() => {
     console.log('OfferCard received offerResult:', offerResult);
-    
-    // Parse the offer data
-    parsedOffer = extractOfferFromSearchResult(offerResult);
     console.log('OfferCard parsed offer:', parsedOffer);
-    
+
     if (parsedOffer) {
-      await loadFriendlyNames();
+      loadFriendlyNames();
     } else {
       console.error('Failed to parse offer:', offerResult);
       isLoadingNames = false;
