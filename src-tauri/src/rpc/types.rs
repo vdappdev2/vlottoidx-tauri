@@ -421,7 +421,8 @@ pub struct IdentityUpdate {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SendCurrencyRequest {
-    pub currency: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<String>,
     pub amount: f64,
     pub address: String,
     pub convertto: Option<String>,

@@ -714,9 +714,13 @@
 
   function buildOutputs() {
     const output: any = {
-      currency: formData.currency,
       address: formData.toAddress
     };
+
+    // For export-identity, don't include currency field at all
+    if (operationType !== 'export-identity') {
+      output.currency = formData.currency;
+    }
 
     // Set amount based on operation type
     if (operationType === 'export-definition' || operationType === 'export-identity') {
@@ -735,18 +739,18 @@
 
     // Hidden RPC parameters set automatically based on operation type
     if (operationType === 'export-definition') {
-      output.exportcurrency = "true";
+      output.exportcurrency = true;
     } else if (operationType === 'export-identity') {
-      output.exportid = "true";
+      output.exportid = true;
     } else if (operationType === 'preconvert') {
-      output.preconvert = "true";
+      output.preconvert = true;
     }
 
     // Handle advanced mode manual settings
     if (operationType === 'advanced') {
-      if (formData.exportCurrency) output.exportcurrency = "true";
-      if (formData.exportId) output.exportid = "true";
-      if (formData.preconvert) output.preconvert = "true";
+      if (formData.exportCurrency) output.exportcurrency = true;
+      if (formData.exportId) output.exportid = true;
+      if (formData.preconvert) output.preconvert = true;
     }
 
     return [output];
@@ -766,7 +770,7 @@
       'export-definition': ['fromAddress', 'toAddress', 'currency', 'exportTo'],
       'send-crosschain': ['fromAddress', 'toAddress', 'currency', 'amount', 'exportTo'],
       'convert-crosschain': ['fromAddress', 'toAddress', 'currency', 'amount', 'convertTo', 'via', 'exportTo'],
-      'export-identity': ['fromAddress', 'toAddress', 'exportTo'],
+      'export-identity': ['fromAddress', 'exportTo'],
       'advanced': ['fromAddress', 'toAddress', 'currency', 'amount', 'convertTo', 'via', 'exportTo', 'exportCurrency', 'exportId', 'preconvert', 'memo', 'refundTo', 'minConfs', 'feeAmount', 'feeCurrency', 'addConversionFees', 'burn', 'mintNew'],
       'estimate-conversion': ['currency', 'amount', 'convertTo', 'via']
     };
@@ -830,14 +834,18 @@
         {#if showField('fromAddress')}
           <div>
             <label class="block text-sm font-medium text-verusidx-stone-dark dark:text-white mb-2">
-              From Address *
+              {#if operationType === 'export-identity'}
+                Identity to Export *
+              {:else}
+                From Address *
+              {/if}
             </label>
 {#if operationType === 'export-identity'}
-              <input 
-                type="text" 
-                bind:value={formData.fromAddress} 
+              <input
+                type="text"
+                bind:value={formData.fromAddress}
                 required
-                placeholder="Enter identity (e.g. myid@)"
+                placeholder="Enter identity name (e.g., myid@)"
                 class="w-full p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white"
               />
             {:else if operationType === 'advanced'}
@@ -982,17 +990,17 @@
             <label class="block text-sm font-medium text-verusidx-stone-dark dark:text-white mb-2">
               Export To Chain *
             </label>
-{#if operationType === 'advanced' || operationType === 'export-definition'}
-              <input 
-                type="text" 
-                bind:value={formData.exportTo} 
+{#if operationType === 'advanced' || operationType === 'export-definition' || operationType === 'export-identity'}
+              <input
+                type="text"
+                bind:value={formData.exportTo}
                 required
-                placeholder="Enter network name (eg. vETH, vARRR)"
+                placeholder="Enter network name (e.g., vETH, vARRR)"
                 class="w-full p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white"
               />
             {:else}
-              <select 
-                bind:value={formData.exportTo} 
+              <select
+                bind:value={formData.exportTo}
                 required
                 class="w-full p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white"
               >

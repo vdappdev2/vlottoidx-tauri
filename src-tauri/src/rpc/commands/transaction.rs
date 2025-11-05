@@ -45,7 +45,7 @@ impl VerusRpcClient {
         to_address: &str
     ) -> Result<String, RpcError> {
         let output = SendCurrencyRequest {
-            currency: currency.to_string(),
+            currency: Some(currency.to_string()),
             amount,
             address: to_address.to_string(),
             convertto: None,
@@ -58,7 +58,7 @@ impl VerusRpcClient {
             feecurrency: None,
             addconversionfees: None,
         };
-        
+
         self.send_currency(from_address, vec![output], None, None, None).await
     }
 
@@ -72,7 +72,7 @@ impl VerusRpcClient {
         to_address: &str
     ) -> Result<String, RpcError> {
         let output = SendCurrencyRequest {
-            currency: source_currency.to_string(),
+            currency: Some(source_currency.to_string()),
             amount,
             address: to_address.to_string(),
             convertto: Some(target_currency.to_string()),
@@ -85,7 +85,7 @@ impl VerusRpcClient {
             feecurrency: None,
             addconversionfees: None,
         };
-        
+
         self.send_currency(from_address, vec![output], None, None, None).await
     }
 
@@ -99,7 +99,7 @@ impl VerusRpcClient {
         to_address: &str
     ) -> Result<String, RpcError> {
         let output = SendCurrencyRequest {
-            currency: currency.to_string(),
+            currency: Some(currency.to_string()),
             amount,
             address: to_address.to_string(),
             convertto: None,
@@ -112,7 +112,7 @@ impl VerusRpcClient {
             feecurrency: None,
             addconversionfees: None,
         };
-        
+
         self.send_currency(from_address, vec![output], None, None, None).await
     }
 
@@ -125,7 +125,7 @@ impl VerusRpcClient {
         to_address: &str
     ) -> Result<String, RpcError> {
         let output = SendCurrencyRequest {
-            currency: currency.to_string(),
+            currency: Some(currency.to_string()),
             amount: 0.0,
             address: to_address.to_string(),
             convertto: None,
@@ -138,7 +138,7 @@ impl VerusRpcClient {
             feecurrency: None,
             addconversionfees: None,
         };
-        
+
         self.send_currency(from_address, vec![output], None, None, None).await
     }
 
@@ -150,7 +150,7 @@ impl VerusRpcClient {
         to_address: &str
     ) -> Result<String, RpcError> {
         let output = SendCurrencyRequest {
-            currency: "".to_string(), // Not used for identity export
+            currency: None, // Not needed for identity export
             amount: 0.0,
             address: to_address.to_string(),
             convertto: None,
@@ -163,7 +163,7 @@ impl VerusRpcClient {
             feecurrency: None,
             addconversionfees: None,
         };
-        
+
         self.send_currency(from_address, vec![output], None, None, None).await
     }
 
