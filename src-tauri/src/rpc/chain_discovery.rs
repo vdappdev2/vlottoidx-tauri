@@ -43,7 +43,7 @@ impl ChainDiscovery {
         }
 
         // Check for VRSC (main chain)
-        let vrsc_config = komodo_dir.join("VRSC").join("vrsc.conf");
+        let vrsc_config = komodo_dir.join("VRSC").join("VRSC.conf");
         if vrsc_config.exists() {
             eprintln!("FOUND VRSC CONFIG: {:?}", vrsc_config);
             if let Ok(credentials) = parse_config_file(&vrsc_config) {
@@ -166,7 +166,7 @@ fn parse_config_file(config_path: &Path) -> Result<RpcCredentials, RpcError> {
     let port = rpc_port.unwrap_or_else(|| {
         if let Some(filename) = config_path.file_name().and_then(|f| f.to_str()) {
             match filename {
-                "vrsc.conf" => ChainConfig::default_port(&SupportedChain::Vrsc),
+                "VRSC.conf" => ChainConfig::default_port(&SupportedChain::Vrsc),
                 "vrsctest.conf" => ChainConfig::default_port(&SupportedChain::VrscTest),
                 _ => {
                     // For PBaaS chains, try to identify by parent directory name (currencyidhex)
