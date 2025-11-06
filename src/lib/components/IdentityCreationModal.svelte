@@ -36,8 +36,7 @@
     minimumSignatures: 1,
     revocationAuthority: '',
     recoveryAuthority: '',
-    privateAddress: '',
-    timelock: ''
+    privateAddress: ''
   });
 
   // Available data - separate for different purposes
@@ -99,8 +98,7 @@
       minimumSignatures: 1,
       revocationAuthority: '',
       recoveryAuthority: '',
-      privateAddress: '',
-      timelock: ''
+      privateAddress: ''
     };
     error = null;
     addressLoadingError = null;
@@ -468,8 +466,7 @@
         minimumsignatures: formData.minimumSignatures,
         revocationauthority: formData.revocationAuthority || undefined,
         recoveryauthority: formData.recoveryAuthority || undefined,
-        privateaddress: formData.privateAddress || undefined,
-        timelock: formData.timelock ? parseInt(formData.timelock) : undefined
+        privateaddress: formData.privateAddress || undefined
       };
 
       // Remove undefined values to clean up the object
@@ -783,7 +780,7 @@
           <label class="block text-sm font-medium text-verusidx-stone-dark dark:text-white mb-2">
             Source of Funds (Optional)
           </label>
-          <select 
+          <select
             bind:value={formData.sourceOfFunds}
             disabled={isLoadingSourceAddresses}
             class="w-full p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white disabled:opacity-50"
@@ -792,11 +789,11 @@
               {#if isLoadingSourceAddresses}
                 Loading source addresses...
               {:else if hasLoadedSourceAddresses && sourceAddresses.length === 0}
-                Default (transparent wildcard "*") - No addresses found
+                Select address (optional)
               {:else if !hasLoadedSourceAddresses}
-                Default (transparent wildcard "*") - Failed to load
+                Select address (optional)
               {:else}
-                Default (transparent wildcard "*")
+                Select address (optional)
               {/if}
             </option>
             {#each sourceAddresses as address}
@@ -804,7 +801,7 @@
             {/each}
           </select>
           <p class="text-xs text-verusidx-mountain-grey dark:text-verusidx-mountain-mist mt-1">
-            Optional address to use for funding the commitment
+            Address to source funds for fees
           </p>
         </div>
 
@@ -1067,14 +1064,14 @@
                 Private Address
               </label>
               {#if isLoadingPrivateAddresses}
-                <select 
+                <select
                   disabled
                   class="w-full p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white opacity-50"
                 >
                   <option>Loading private addresses...</option>
                 </select>
               {:else}
-                <select 
+                <select
                   bind:value={formData.privateAddress}
                   class="w-full p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white"
                 >
@@ -1087,19 +1084,6 @@
               <p class="text-xs text-verusidx-mountain-grey dark:text-verusidx-mountain-mist mt-1">
                 Private Z-address associated with this identity
               </p>
-            </div>
-
-            <!-- Timelock -->
-            <div>
-              <label class="block text-sm font-medium text-verusidx-stone-dark dark:text-white mb-2">
-                Timelock (Block Height)
-              </label>
-              <input 
-                type="number" 
-                bind:value={formData.timelock} 
-                placeholder="Block height when identity becomes active"
-                class="w-full p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white"
-              />
             </div>
           </div>
         </details>
