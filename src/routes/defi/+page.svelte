@@ -4,6 +4,7 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
   import { BlockHeightHeader, DefiOperationModal, OperationCard } from "$lib/components";
+  import ExportIdentityWarningModal from "$lib/components/ExportIdentityWarningModal.svelte";
   
   type OperationType = 
     | 'send-transparent'
@@ -121,6 +122,18 @@
   // State for modal management
   let isModalOpen = $state(false);
   let currentOperation = $state<OperationType | null>(null);
+  let isExportWarningModalOpen = $state(false);
+
+  // Check if user has seen the export identity warning this session
+  const EXPORT_IDENTITY_WARNING_KEY = 'exportIdentityWarningShown';
+  let hasSeenExportIdentityWarning = $state(false);
+
+  // Load from sessionStorage on mount
+  $effect(() => {
+    if (typeof window !== 'undefined') {
+      hasSeenExportIdentityWarning = sessionStorage.getItem(EXPORT_IDENTITY_WARNING_KEY) === 'true';
+    }
+  });
 
   // State for operations tracking
   let operations = $state<any[]>([]);
@@ -139,9 +152,18 @@
   }
 
   function openModal(operationId: string) {
-    currentOperation = operationId as OperationType;
-    isModalOpen = true;
-    console.log("Opening modal for:", operationId);
+    // Check if this is export-identity and if user has seen warning
+    if (operationId === 'export-identity' && !hasSeenExportIdentityWarning) {
+      // Show warning modal first
+      currentOperation = operationId as OperationType;
+      isExportWarningModalOpen = true;
+      console.log("Opening export identity warning modal");
+    } else {
+      // Directly open operation modal
+      currentOperation = operationId as OperationType;
+      isModalOpen = true;
+      console.log("Opening modal for:", operationId);
+    }
   }
 
   function closeModal() {
@@ -149,6 +171,22 @@
     currentOperation = null;
     // Reload operations after closing modal to show any new operations
     loadOperations();
+  }
+
+  function handleExportWarningProceed() {
+    // Mark as seen for this session
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(EXPORT_IDENTITY_WARNING_KEY, 'true');
+      hasSeenExportIdentityWarning = true;
+    }
+    // Close warning modal and open operation modal
+    isExportWarningModalOpen = false;
+    isModalOpen = true;
+  }
+
+  function handleExportWarningCancel() {
+    isExportWarningModalOpen = false;
+    currentOperation = null;
   }
 
   // Load operations when component mounts
@@ -242,9 +280,16 @@
   </div>
 </div>
 
+<!-- Export Identity Warning Modal -->
+<ExportIdentityWarningModal
+  isOpen={isExportWarningModalOpen}
+  onProceed={handleExportWarningProceed}
+  onCancel={handleExportWarningCancel}
+/>
+
 <!-- DeFi Operation Modal -->
-<DefiOperationModal 
-  isOpen={isModalOpen} 
+<DefiOperationModal
+  isOpen={isModalOpen}
   operationType={currentOperation}
-  onClose={closeModal} 
+  onClose={closeModal}
 />

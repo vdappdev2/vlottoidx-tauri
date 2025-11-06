@@ -13,6 +13,7 @@ export { default as CurrencyListCard } from './CurrencyListCard.svelte';
 export { default as CurrencyCreationModal } from './CurrencyCreationModal.svelte';
 export { default as CurrencyModal } from './CurrencyModal.svelte';
 export { default as DefiOperationModal } from './DefiOperationModal.svelte';
+export { default as ExportIdentityWarningModal } from './ExportIdentityWarningModal.svelte';
 export { default as OnboardingConversionModal } from './OnboardingConversionModal.svelte';
 export { default as EstimateConversionModal } from './EstimateConversionModal.svelte';
 export { default as OfferTypeSelector } from './OfferTypeSelector.svelte';
