@@ -213,7 +213,7 @@ export async function enumerateAndFetchTickets(
 			const { ticketData, ticketIdentity } = result;
 
 			// Determine network type for graveyard address lookup
-			const network = (!chain || chain === 'vrsctest') ? 'VRSCTEST' : 'VRSC';
+			const network = (chain && chain.toLowerCase() === 'vrsctest') ? 'VRSCTEST' : 'VRSC';
 
 			// Check ticket status
 			const claimed = isTicketClaimed(ticketIdentity, claimedTicketsAddress);
