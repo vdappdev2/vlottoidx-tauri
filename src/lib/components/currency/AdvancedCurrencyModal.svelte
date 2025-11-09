@@ -2,6 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { connectionStore, getChainParam } from "$lib/stores/connection";
   import { Modal } from '../cards';
+  import { showSuccess, showError } from '$lib/services/notifications';
 
   interface Props {
     isOpen: boolean;
@@ -124,7 +125,9 @@
       });
 
       console.log('Advanced currency created successfully:', sendResult);
-      
+
+      showSuccess('Advanced currency created successfully', { txid: sendResult as string });
+
       if (onSuccess) {
         onSuccess();
       }
@@ -133,6 +136,7 @@
     } catch (err) {
       console.error('Advanced currency creation failed:', err);
       error = typeof err === 'string' ? err : 'Currency creation failed. Please check your JSON and try again.';
+      showError(error);
     } finally {
       isSubmitting = false;
     }

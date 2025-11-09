@@ -3,6 +3,7 @@
   import { connectionStore, getChainParam } from "$lib/stores/connection";
   import { Modal } from '../cards';
   import PreallocationManager from './PreallocationManager.svelte';
+  import { showSuccess, showError } from '$lib/services/notifications';
 
   interface Props {
     isOpen: boolean;
@@ -125,7 +126,9 @@
       });
 
       console.log('ID Control Token created successfully:', sendResult);
-      
+
+      showSuccess('ID Control Token created successfully', { txid: sendResult as string });
+
       if (onSuccess) {
         onSuccess();
       }
@@ -134,6 +137,7 @@
     } catch (err) {
       console.error('ID Control Token creation failed:', err);
       error = typeof err === 'string' ? err : 'Currency creation failed. Please try again.';
+      showError(error);
     } finally {
       isSubmitting = false;
     }
@@ -145,13 +149,12 @@
     <!-- ID Control Token Info -->
     <div class="mb-6 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
       <p class="text-purple-700 dark:text-purple-300 text-sm mb-2">
-        👑 <strong>ID Control Token:</strong> A special single-satoshi token that grants revoke/recover authority over the currency's root identity.
+        👑 <strong>ID Control Token:</strong> A special single-satoshi token that grants primary authority over the currency's ID@.
       </p>
       <ul class="text-purple-700 dark:text-purple-300 text-xs space-y-1 ml-4">
         <li>• Exactly 0.00000001 tokens (1 satoshi) minted to one recipient</li>
-        <li>• Holder gains control over the root identity's revocation/recovery</li>
+        <li>• Holder gains control over the identity's update/revocation/recovery</li>
         <li>• Token can be transferred to delegate control</li>
-        <li>• Useful for DAOs or shared identity management</li>
       </ul>
     </div>
 
@@ -210,7 +213,7 @@
     <!-- Authority Transfer Warning -->
     <div class="mb-6 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
       <p class="text-orange-700 dark:text-orange-300 text-sm">
-        ⚠️ <strong>Important:</strong> The recipient will gain revoke/recover authority over your currency's root identity. 
+        ⚠️ <strong>Important:</strong> The recipient will gain primary authority over your currency's namespace identity. 
         Choose the recipient address carefully, as this grants significant control.
       </p>
     </div>

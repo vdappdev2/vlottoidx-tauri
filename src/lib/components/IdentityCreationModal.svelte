@@ -55,6 +55,7 @@
   let error = $state<string | null>(null);
   let addressLoadingError = $state<string | null>(null);
   let blockCheckInterval = $state<NodeJS.Timeout | null>(null);
+  let showManualPrimaryInput = $state(false);
   
   // Connection state for chain parameter
   let connectionState = $state<any>();
@@ -126,6 +127,8 @@
       clearInterval(blockCheckInterval);
       blockCheckInterval = null;
     }
+    // Reset manual input state
+    showManualPrimaryInput = false;
   }
 
   async function loadControlAddresses() {
@@ -336,6 +339,22 @@
     if (formData.primaryAddresses.length > 1) {
       formData.primaryAddresses = formData.primaryAddresses.filter((_, i) => i !== index);
     }
+  }
+
+  function handlePrimaryAddressDropdownChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    if (target.value === '__MANUAL__') {
+      showManualPrimaryInput = true;
+      formData.primaryAddresses[0] = '';
+    } else {
+      showManualPrimaryInput = false;
+      formData.primaryAddresses[0] = target.value;
+    }
+  }
+
+  function switchToDropdown() {
+    showManualPrimaryInput = false;
+    formData.primaryAddresses[0] = '';
   }
 
   async function handleNameReservation(event: SubmitEvent) {
@@ -958,28 +977,49 @@
           {#each formData.primaryAddresses as _, index}
             <div class="flex space-x-2 mb-2">
               {#if index === 0}
-                <!-- First address: dropdown from loaded addresses -->
-                <select 
-                  bind:value={formData.primaryAddresses[index]}
-                  required
-                  disabled={isLoadingControlAddresses}
-                  class="flex-1 p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white disabled:opacity-50"
-                >
-                  <option value="">
-                    {#if isLoadingControlAddresses}
-                      Loading addresses...
-                    {:else if hasLoadedControlAddresses && controlAddresses.length === 0}
-                      No addresses available
-                    {:else if !hasLoadedControlAddresses}
-                      Failed to load addresses
-                    {:else}
-                      Select address...
-                    {/if}
-                  </option>
-                  {#each controlAddresses as addr}
-                    <option value={addr}>{addr}{addr.startsWith('z') ? ' (Private)' : ' (Transparent)'}</option>
-                  {/each}
-                </select>
+                <!-- First address: dropdown or manual input -->
+                {#if !showManualPrimaryInput}
+                  <select
+                    onchange={handlePrimaryAddressDropdownChange}
+                    value={formData.primaryAddresses[index]}
+                    required
+                    disabled={isLoadingControlAddresses}
+                    class="flex-1 p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white disabled:opacity-50"
+                  >
+                    <option value="">
+                      {#if isLoadingControlAddresses}
+                        Loading addresses...
+                      {:else if hasLoadedControlAddresses && controlAddresses.length === 0}
+                        No addresses available
+                      {:else if !hasLoadedControlAddresses}
+                        Failed to load addresses
+                      {:else}
+                        Select address...
+                      {/if}
+                    </option>
+                    <option value="__MANUAL__">Input address manually</option>
+                    {#each controlAddresses as addr}
+                      <option value={addr}>{addr}{addr.startsWith('z') ? ' (Private)' : ' (Transparent)'}</option>
+                    {/each}
+                  </select>
+                {:else}
+                  <div class="flex-1">
+                    <input
+                      type="text"
+                      bind:value={formData.primaryAddresses[index]}
+                      required
+                      placeholder="Enter primary address (R-address)"
+                      class="w-full p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white"
+                    />
+                    <button
+                      type="button"
+                      onclick={switchToDropdown}
+                      class="mt-1 text-xs text-verusidx-turquoise-deep hover:text-verusidx-turquoise-bright"
+                    >
+                      ← Use address dropdown
+                    </button>
+                  </div>
+                {/if}
               {:else}
                 <!-- Additional addresses: manual text input -->
                 <input 
@@ -1093,7 +1133,7 @@
           <label class="block text-sm font-medium text-verusidx-stone-dark dark:text-white mb-2">
             Source of Funds (Optional)
           </label>
-          <select 
+          <select
             bind:value={formData.sourceOfFunds}
             disabled={isLoadingSourceAddresses}
             class="w-full p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white disabled:opacity-50"
@@ -1101,12 +1141,8 @@
             <option value="">
               {#if isLoadingSourceAddresses}
                 Loading source addresses...
-              {:else if hasLoadedSourceAddresses && sourceAddresses.length === 0}
-                Default (transparent wildcard "*") - No addresses found
-              {:else if !hasLoadedSourceAddresses}
-                Default (transparent wildcard "*") - Failed to load
               {:else}
-                Default (transparent wildcard "*")
+                Select address
               {/if}
             </option>
             {#each sourceAddresses as address}
@@ -1115,9 +1151,6 @@
               </option>
             {/each}
           </select>
-          <p class="text-xs text-verusidx-mountain-grey dark:text-verusidx-mountain-mist mt-1">
-            Address to source funds for registration fees. Leave empty to use transparent wildcard "*"
-          </p>
         </div>
 
 

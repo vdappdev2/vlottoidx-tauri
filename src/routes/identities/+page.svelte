@@ -4,14 +4,18 @@
   import { BlockHeightHeader } from "$lib/components";
   import IdentitySearchCard from "$lib/components/IdentitySearchCard.svelte";
   import IdentityListCard from "$lib/components/IdentityListCard.svelte";
+  import IdentityCreationChoiceModal from "$lib/components/IdentityCreationChoiceModal.svelte";
   import IdentityCreationModal from "$lib/components/IdentityCreationModal.svelte";
+  import IdentityRegistrationWithCommitmentModal from "$lib/components/IdentityRegistrationWithCommitmentModal.svelte";
   import RevokeIdentityModal from "$lib/components/RevokeIdentityModal.svelte";
   import RecoverIdentityModal from "$lib/components/RecoverIdentityModal.svelte";
   import UpdateIdentityModal from "$lib/components/UpdateIdentityModal.svelte";
   import TimelockIdentityModal from "$lib/components/TimelockIdentityModal.svelte";
   import TimelockWarningModal from "$lib/components/TimelockWarningModal.svelte";
 
+  let isCreationChoiceModalOpen = $state(false);
   let isCreationModalOpen = $state(false);
+  let isRegistrationWithCommitmentModalOpen = $state(false);
   let isRevokeModalOpen = $state(false);
   let isRecoverModalOpen = $state(false);
   let isUpdateModalOpen = $state(false);
@@ -40,18 +44,37 @@
     goto("/");
   }
 
-  function openCreationModal() {
+  function openCreationChoiceModal() {
+    isCreationChoiceModalOpen = true;
+  }
+
+  function closeCreationChoiceModal() {
+    isCreationChoiceModalOpen = false;
+  }
+
+  function handleChooseNew() {
+    closeCreationChoiceModal();
     isCreationModalOpen = true;
+  }
+
+  function handleChooseExisting() {
+    closeCreationChoiceModal();
+    isRegistrationWithCommitmentModalOpen = true;
   }
 
   function closeCreationModal() {
     isCreationModalOpen = false;
   }
 
+  function closeRegistrationWithCommitmentModal() {
+    isRegistrationWithCommitmentModalOpen = false;
+  }
+
   function handleCreationSuccess() {
     // Refresh the identity list after successful creation
     // The IdentityListCard component should handle refreshing itself
     closeCreationModal();
+    closeRegistrationWithCommitmentModal();
   }
 
   function openRevokeModal() {
@@ -145,7 +168,7 @@
           </div>
           <div class="flex space-x-3">
             <button
-              onclick={openCreationModal}
+              onclick={openCreationChoiceModal}
               class="px-4 py-2 bg-verusidx-forest-deep text-white rounded-lg hover:bg-verusidx-turquoise-deep transition-colors"
             >
               Create Identity
@@ -195,10 +218,25 @@
   </div>
 </div>
 
-<!-- Identity Creation Modal -->
-<IdentityCreationModal 
+<!-- Identity Creation Choice Modal -->
+<IdentityCreationChoiceModal
+  isOpen={isCreationChoiceModalOpen}
+  onClose={closeCreationChoiceModal}
+  onChooseNew={handleChooseNew}
+  onChooseExisting={handleChooseExisting}
+/>
+
+<!-- Identity Creation Modal (full workflow) -->
+<IdentityCreationModal
   isOpen={isCreationModalOpen}
   onClose={closeCreationModal}
+  onSuccess={handleCreationSuccess}
+/>
+
+<!-- Identity Registration with Commitment Modal -->
+<IdentityRegistrationWithCommitmentModal
+  isOpen={isRegistrationWithCommitmentModalOpen}
+  onClose={closeRegistrationWithCommitmentModal}
   onSuccess={handleCreationSuccess}
 />
 

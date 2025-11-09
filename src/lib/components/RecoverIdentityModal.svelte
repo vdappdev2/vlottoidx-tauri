@@ -42,7 +42,8 @@
   let error = $state<string | null>(null);
   let addressLoadingError = $state<string | null>(null);
   let successTxId = $state<string | null>(null);
-  
+  let showManualPrimaryInput = $state(false);
+
   // Connection state for chain parameter
   let connectionState = $state<any>();
   connectionStore.subscribe(value => { connectionState = value; });
@@ -89,6 +90,7 @@
     sourceAddresses = [];
     sourceFundsAddresses = [];
     privateAddresses = [];
+    showManualPrimaryInput = false;
   }
 
   async function loadAddresses() {
@@ -225,6 +227,22 @@
     if (formData.primaryAddresses.length > 1) {
       formData.primaryAddresses = formData.primaryAddresses.filter((_, i) => i !== index);
     }
+  }
+
+  function handlePrimaryAddressDropdownChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    if (target.value === '__MANUAL__') {
+      showManualPrimaryInput = true;
+      formData.primaryAddresses[0] = '';
+    } else {
+      showManualPrimaryInput = false;
+      formData.primaryAddresses[0] = target.value;
+    }
+  }
+
+  function switchToDropdown() {
+    showManualPrimaryInput = false;
+    formData.primaryAddresses[0] = '';
   }
 
   async function handleSubmit() {
@@ -389,28 +407,50 @@
           {#each formData.primaryAddresses as _, index}
             <div class="flex space-x-2">
               {#if index === 0}
-                <!-- First address: dropdown from loaded addresses -->
-                <select 
-                  bind:value={formData.primaryAddresses[index]}
-                  required
-                  disabled={isLoadingAddresses || isSubmitting}
-                  class="flex-1 p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white disabled:opacity-50"
-                >
-                  <option value="">
-                    {#if isLoadingAddresses}
-                      Loading addresses...
-                    {:else if hasLoadedAddresses && sourceAddresses.length === 0}
-                      No addresses available
-                    {:else if !hasLoadedAddresses}
-                      Failed to load addresses
-                    {:else}
-                      Select primary address...
-                    {/if}
-                  </option>
-                  {#each sourceAddresses as address}
-                    <option value={address}>{address}</option>
-                  {/each}
-                </select>
+                <!-- First address: dropdown or manual input -->
+                {#if !showManualPrimaryInput}
+                  <select
+                    onchange={handlePrimaryAddressDropdownChange}
+                    value={formData.primaryAddresses[index]}
+                    required
+                    disabled={isLoadingAddresses || isSubmitting}
+                    class="flex-1 p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white disabled:opacity-50"
+                  >
+                    <option value="">
+                      {#if isLoadingAddresses}
+                        Loading addresses...
+                      {:else if hasLoadedAddresses && sourceAddresses.length === 0}
+                        No addresses available
+                      {:else if !hasLoadedAddresses}
+                        Failed to load addresses
+                      {:else}
+                        Select primary address...
+                      {/if}
+                    </option>
+                    <option value="__MANUAL__">Input address manually</option>
+                    {#each sourceAddresses as address}
+                      <option value={address}>{address}</option>
+                    {/each}
+                  </select>
+                {:else}
+                  <div class="flex-1">
+                    <input
+                      type="text"
+                      bind:value={formData.primaryAddresses[index]}
+                      required
+                      placeholder="Enter recovery address (R-address)"
+                      class="w-full p-3 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white"
+                      disabled={isSubmitting}
+                    />
+                    <button
+                      type="button"
+                      onclick={switchToDropdown}
+                      class="mt-1 text-xs text-verusidx-turquoise-deep hover:text-verusidx-turquoise-bright"
+                    >
+                      ← Use address dropdown
+                    </button>
+                  </div>
+                {/if}
               {:else}
                 <!-- Additional addresses: manual text input -->
                 <input
