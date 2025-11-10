@@ -416,25 +416,25 @@ pub async fn connect_to_chain(
     state: State<'_, AppState>
 ) -> Result<bool, String> {
     let discovered_chains = state.discovered_chains.read().await;
-    
+
     // Log chain connection attempts
     eprintln!("Connecting to chain: {}", chain_name);
-    
+
     // Find the requested chain (case-insensitive comparison)
     let chain = discovered_chains
         .iter()
         .find(|c| c.name.to_string() == chain_name.to_lowercase())
-        .ok_or(format!("Chain '{}' not found in discovered chains. Available: {:?}", 
-            chain_name, 
+        .ok_or(format!("Chain '{}' not found in discovered chains. Available: {:?}",
+            chain_name,
             discovered_chains.iter().map(|c| c.name.to_string()).collect::<Vec<_>>()))?;
-    
+
     if !chain.is_active {
         return Err("Chain is not active/reachable".to_string());
     }
-    
+
     // Create new client for this chain
     let client = VerusRpcClient::new(chain.credentials.clone()).map_err(|e| e.to_string())?;
-    
+
     // Test the connection
     match client.test_connection().await {
         Ok(_) => {
@@ -445,6 +445,67 @@ pub async fn connect_to_chain(
         }
         Err(e) => Err(format!("Failed to connect to chain: {}", e))
     }
+}
+
+#[tauri::command]
+pub async fn test_and_connect_manual(
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    state: State<'_, AppState>
+) -> Result<Value, String> {
+    eprintln!("Testing manual RPC connection to {}:{}", host, port);
+
+    // Create credentials
+    let credentials = RpcCredentials {
+        username,
+        password,
+        host,
+        port,
+    };
+
+    // Validate credentials format
+    CredentialManager::validate_credentials(&credentials)
+        .map_err(|e| e.to_string())?;
+
+    // Create RPC client
+    let client = VerusRpcClient::new(credentials.clone())
+        .map_err(|e| format!("Failed to create RPC client: {}", e))?;
+
+    // Test the connection
+    client.test_connection().await
+        .map_err(|e| format!("Connection test failed: {}", e))?;
+
+    // Get chain info to determine which chain we're connected to
+    let info: Value = client.call("getinfo", json!([])).await
+        .map_err(|e| format!("Failed to get chain info: {}", e))?;
+
+    // Determine chain name from the response
+    let chain_name = if let Some(name) = info.get("name").and_then(|v| v.as_str()) {
+        name.to_string()
+    } else {
+        // Fallback: determine from port
+        match port {
+            18843 => "vrsctest".to_string(),
+            27486 => "vrsc".to_string(),
+            _ => "unknown".to_string(),
+        }
+    };
+
+    eprintln!("Successfully connected to chain: {}", chain_name);
+
+    // Store the working client in app state
+    let mut active_client = state.active_client.write().await;
+    *active_client = Some(client);
+
+    // Return connection info
+    Ok(json!({
+        "success": true,
+        "chainName": chain_name,
+        "host": credentials.host,
+        "port": credentials.port
+    }))
 }
 
 // Credential Management Commands

@@ -15,6 +15,8 @@
   let availableChains = $state<any[]>([]);
   let isDiscoveringChains = $state(false);
   let showManualEntry = $state(false);
+  let hasSavedCredentials = $state(false);
+  let showRemoteWarning = $state(false);
   
   // RPC data for mock elements
   let blockHeight = $state<number | null>(null);
@@ -146,7 +148,95 @@
 
   async function handleManualConnect(event: Event) {
     event.preventDefault();
-    await connectToChain();
+
+    // Check if connecting to remote host and show warning
+    const isRemote = formData.host !== "127.0.0.1" && formData.host !== "localhost";
+    if (isRemote && !showRemoteWarning) {
+      showRemoteWarning = true;
+      return;
+    }
+
+    connectionStore.update(state => ({ ...state, isConnecting: true, lastError: null }));
+
+    try {
+      console.log("Testing manual connection to:", formData.host, formData.port);
+
+      // Call backend to test connection and create RPC client
+      const result = await invoke("test_and_connect_manual", {
+        host: formData.host,
+        port: formData.port,
+        username: formData.username,
+        password: formData.password
+      }) as any;
+
+      console.log("Manual connection successful:", result);
+
+      // Update connection store with successful connection
+      const connection = {
+        host: formData.host,
+        port: formData.port,
+        username: formData.username,
+        password: formData.password,
+        isConnected: true,
+        chainName: result.chainName
+      };
+
+      connectionStore.update(state => ({
+        ...state,
+        current: connection,
+        selectedChain: result.chainName,
+        isConnecting: false
+      }));
+
+      // Store credentials if user requested
+      if (formData.rememberCredentials) {
+        await invoke("store_credentials", {
+          chain_name: "manual",
+          username: formData.username,
+          password: formData.password,
+          host: formData.host,
+          port: formData.port
+        });
+      }
+
+      // Redirect based on chain type
+      const isTestnet = result.chainName.toLowerCase().includes('test');
+      if (isTestnet) {
+        goto("/dashboard");
+      } else {
+        goto("/access");
+      }
+
+    } catch (error) {
+      console.error("Manual connection failed:", error);
+      connectionStore.update(state => ({
+        ...state,
+        isConnecting: false,
+        lastError: typeof error === 'string' ? error : 'Connection failed. Please check your credentials and daemon status.'
+      }));
+    }
+  }
+
+  async function checkSavedCredentials() {
+    try {
+      await invoke("load_credentials", { chain_name: "manual" });
+      hasSavedCredentials = true;
+    } catch {
+      hasSavedCredentials = false;
+    }
+  }
+
+  async function forgetCredentials() {
+    try {
+      await invoke("clear_credentials", { chain_name: "manual" });
+      hasSavedCredentials = false;
+      // Clear form
+      formData.username = "";
+      formData.password = "";
+      formData.rememberCredentials = false;
+    } catch (error) {
+      console.error("Failed to clear credentials:", error);
+    }
   }
 
   // Disconnect function
@@ -238,6 +328,13 @@
 
   // Auto-discover chains on component mount
   discoverChains();
+
+  // Check for saved credentials when manual entry is shown
+  $effect(() => {
+    if (showManualEntry) {
+      checkSavedCredentials();
+    }
+  });
 </script>
 
 <div class="bg-verusidx-sky-soft dark:bg-verusidx-lake-deep min-h-screen max-h-screen overflow-y-auto transition-colors duration-300">
@@ -495,8 +592,61 @@
 
     {#if showManualEntry}
       <form onsubmit={handleManualConnect} class="space-y-4">
-            <h3 class="text-lg font-semibold mb-4 text-verusidx-stone-dark dark:text-white">Manual Connection</h3>
-        
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-semibold text-verusidx-stone-dark dark:text-white">Manual Connection</h3>
+              {#if hasSavedCredentials}
+                <button
+                  type="button"
+                  onclick={forgetCredentials}
+                  class="text-sm text-verusidx-lake-deep dark:text-verusidx-turquoise-light hover:underline flex items-center gap-1"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                  </svg>
+                  Forget Saved Credentials
+                </button>
+              {/if}
+            </div>
+
+        {#if showRemoteWarning}
+          <div class="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg">
+            <div class="flex items-start gap-3">
+              <svg class="w-6 h-6 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+              </svg>
+              <div class="flex-1">
+                <h4 class="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Remote Connection Warning</h4>
+                <p class="text-sm text-yellow-700 dark:text-yellow-300 mb-2">
+                  You are connecting to a remote daemon. Be aware:
+                </p>
+                <ul class="text-sm text-yellow-700 dark:text-yellow-300 list-disc list-inside space-y-1 mb-3">
+                  <li>Credentials are sent over unencrypted HTTP</li>
+                  <li>The remote node operator can see all your queries</li>
+                  <li>Your addresses, balances, and transactions are visible to the node</li>
+                </ul>
+                <p class="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
+                  <strong>Only connect to:</strong> Your own server, SSH tunnels, or trusted networks.
+                </p>
+                <div class="flex gap-2">
+                  <button
+                    type="submit"
+                    class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    I Understand, Connect Anyway
+                  </button>
+                  <button
+                    type="button"
+                    onclick={() => showRemoteWarning = false}
+                    class="px-4 py-2 bg-verusidx-snow-ice dark:bg-verusidx-stone-medium text-verusidx-stone-dark dark:text-white rounded-lg text-sm font-medium hover:bg-verusidx-mountain-mist dark:hover:bg-verusidx-stone-dark transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        {/if}
+
         <div class="grid grid-cols-2 gap-4">
           <div>
               <label for="host" class="block text-sm font-medium text-verusidx-stone-medium dark:text-verusidx-mountain-mist mb-1">Host</label>
@@ -560,7 +710,7 @@
           disabled={connectionState.isConnecting}
           class="w-full px-6 py-3 bg-verusidx-mountain-blue dark:bg-verusidx-turquoise-deep text-white rounded-lg hover:bg-verusidx-lake-blue dark:hover:bg-verusidx-turquoise-bright focus:ring-2 focus:ring-verusidx-mountain-blue dark:focus:ring-verusidx-turquoise-deep focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {connectionState.isConnecting ? 'Connecting...' : 'Connect to Verus'}
+          {connectionState.isConnecting ? 'Connecting...' : 'Connect Remotely'}
         </button>
       </form>
     {/if}
