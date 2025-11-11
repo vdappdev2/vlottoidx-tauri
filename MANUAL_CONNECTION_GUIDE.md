@@ -40,6 +40,27 @@ Look for IP starting with `192.168.` or `10.0.`
 
 **Edit the config file** (vrsctest.conf or VRSC.conf):
 
+#### Option A: Specific IP Addresses (Recommended)
+
+Use this if you know which devices will connect to your daemon. This is **more secure** as it only allows connections from specific IP addresses.
+
+```
+rpchost=0.0.0.0
+rpcallowip=127.0.0.1
+rpcallowip=192.168.1.52
+rpcallowip=192.168.1.76
+rpcallowip=10.0.0.250
+rpcuser=your_username
+rpcpassword=your_password
+rpcport=18843
+```
+
+You can add as many `rpcallowip=` lines as needed—one for each device/IP address that should be allowed to connect. The first line (`127.0.0.1`) keeps local access working.
+
+#### Option B: Allow All Local Network IPs (Less Secure)
+
+⚠️ **Security Warning**: This allows **any device** on your local network to connect to your daemon if they know your username and password.
+
 ```
 rpchost=0.0.0.0
 rpcallowip=0.0.0.0/0
@@ -47,6 +68,11 @@ rpcuser=your_username
 rpcpassword=your_password
 rpcport=18843
 ```
+
+Only use this if:
+- You're on a trusted private network
+- You don't know which IPs you'll connect from
+- You understand the security implications
 
 **Restart the daemon** after saving changes.
 
@@ -107,6 +133,29 @@ When connecting to a non-localhost daemon, the app will show a security warning.
 - You own both computers
 - You're on a trusted private network
 - You're using an SSH tunnel or VPN
+
+### IP Allowlisting Best Practices
+
+**Understanding `rpcallowip`:**
+- `rpcallowip=127.0.0.1` - Only allows connections from the same computer (localhost)
+- `rpcallowip=192.168.1.52` - Only allows connections from one specific IP address
+- `rpcallowip=0.0.0.0/0` - Allows connections from **any IP address** on your network
+
+**Recommended approach:**
+1. Always keep `rpcallowip=127.0.0.1` for local access
+2. Add specific `rpcallowip=` lines for each device you'll connect from
+3. Use static IPs or DHCP reservations for devices that need RPC access
+4. Avoid `0.0.0.0/0` unless you fully understand the risks
+
+**Example for multi-device setup:**
+```
+rpcallowip=127.0.0.1          # Local access
+rpcallowip=192.168.1.52       # Laptop
+rpcallowip=192.168.1.76       # Desktop in office
+rpcallowip=10.0.0.250         # Remote office VPN
+```
+
+This way, even if someone on your network discovers your RPC port is open, they can't connect unless they're using one of the allowed IP addresses.
 
 ---
 
@@ -199,11 +248,12 @@ If this fails, firewall is blocking the connection.
 ## Best Practices
 
 1. **Use strong passwords** in RPC config
-2. **Don't remember credentials** for remote connections unless it's your own server
-3. **Use SSH tunnel** when connecting over internet or untrusted networks
-4. **Set network to Private** on Windows (not Public)
-5. **Restart daemon** after any config changes
-6. **Close port 18843** in firewall when not in use for added security
+2. **Limit `rpcallowip` to specific addresses** when possible—avoid `0.0.0.0/0` unless necessary
+3. **Don't remember credentials** for remote connections unless it's your own server
+4. **Use SSH tunnel** when connecting over internet or untrusted networks
+5. **Set network to Private** on Windows (not Public)
+6. **Restart daemon** after any config changes
+7. **Close port 18843** in firewall when not in use for added security
 
 ---
 

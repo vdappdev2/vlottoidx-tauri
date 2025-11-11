@@ -1,7 +1,9 @@
 // Chain Discovery and Configuration Management
-use crate::rpc::{RpcCredentials, ChainConfig, SupportedChain, RpcError};
+use crate::rpc::{RpcCredentials, ChainConfig, RpcError};
 use std::path::{Path, PathBuf};
 use std::fs;
+use std::collections::HashMap;
+use serde_json::json;
 
 /// Discovers all available Verus chains by scanning configuration directories
 pub struct ChainDiscovery {
@@ -19,13 +21,15 @@ impl ChainDiscovery {
     pub async fn discover_chains(&mut self) -> Result<Vec<ChainConfig>, RpcError> {
         let mut chains = Vec::new();
 
-        // Scan Komodo directory for main chains
+        // Step 1: Scan Komodo directory for main chains (VRSC, VRSCTEST)
         if let Ok(komodo_chains) = self.scan_komodo_directory().await {
             chains.extend(komodo_chains);
         }
 
-        // Scan .verus directory for PBaaS chains
-        if let Ok(verus_chains) = self.scan_verus_directory().await {
+        // Step 2: Scan .verus directory for all PBaaS chains
+        if let Ok(mut verus_chains) = self.scan_verus_directory().await {
+            // Step 3: Resolve friendly names via RPC (or use fallback)
+            let _ = self.resolve_pbaas_names(&mut verus_chains).await;
             chains.extend(verus_chains);
         }
 
@@ -49,7 +53,8 @@ impl ChainDiscovery {
             if let Ok(credentials) = parse_config_file(&vrsc_config) {
                 eprintln!("PARSED VRSC CREDENTIALS: {}:{}", credentials.host, credentials.port);
                 chains.push(ChainConfig {
-                    name: SupportedChain::Vrsc,
+                    name: "vrsc".to_string(),
+                    display_name: "VRSC".to_string(),
                     credentials,
                     is_active: false, // Will be tested later
                 });
@@ -67,7 +72,8 @@ impl ChainDiscovery {
             if let Ok(credentials) = parse_config_file(&vrsctest_config) {
                 eprintln!("PARSED VRSCTEST CREDENTIALS: {}:{}", credentials.host, credentials.port);
                 chains.push(ChainConfig {
-                    name: SupportedChain::VrscTest,
+                    name: "vrsctest".to_string(),
+                    display_name: "VRSCTEST".to_string(),
                     credentials,
                     is_active: false,
                 });
@@ -90,23 +96,23 @@ impl ChainDiscovery {
             return Ok(chains);
         }
 
-        // Read all subdirectories (each represents a PBaaS chain by hash)
+        // Read all subdirectories (each represents a PBaaS chain by currencyidhex)
         if let Ok(entries) = fs::read_dir(&verus_dir) {
             for entry in entries.flatten() {
                 if entry.path().is_dir() {
-                    let chain_hash = entry.file_name().to_string_lossy().to_string();
-                    let config_file = entry.path().join(format!("{}.conf", chain_hash));
-                    
+                    let currencyidhex = entry.file_name().to_string_lossy().to_string();
+                    let config_file = entry.path().join(format!("{}.conf", currencyidhex));
+
                     if config_file.exists() {
                         if let Ok(credentials) = parse_config_file(&config_file) {
-                            // Try to determine which supported chain this is
-                            if let Some(chain_type) = identify_pbaas_chain(&chain_hash) {
-                                chains.push(ChainConfig {
-                                    name: chain_type,
-                                    credentials,
-                                    is_active: false,
-                                });
-                            }
+                            // Accept ALL PBaaS chains - no filtering
+                            // Initially use currencyidhex as display_name, will be enriched later
+                            chains.push(ChainConfig {
+                                name: currencyidhex.clone(),
+                                display_name: currencyidhex,
+                                credentials,
+                                is_active: false,
+                            });
                         }
                     }
                 }
@@ -116,13 +122,91 @@ impl ChainDiscovery {
         Ok(chains)
     }
 
+    /// Resolve friendly names for PBaaS chains via VRSC mainnet RPC
+    async fn resolve_pbaas_names(&self, chains: &mut [ChainConfig]) -> Result<(), RpcError> {
+        // Try to get VRSC mainnet credentials from discovered chains
+        let vrsc_credentials = match self.get_vrsc_credentials() {
+            Ok(creds) => creds,
+            Err(_) => {
+                eprintln!("VRSC mainnet credentials not found, using fallback names");
+                apply_fallback_names(chains);
+                return Ok(());
+            }
+        };
+
+        // Try to connect to VRSC mainnet
+        let client = match crate::rpc::VerusRpcClient::new(vrsc_credentials) {
+            Ok(c) => c,
+            Err(_) => {
+                eprintln!("Failed to create VRSC RPC client, using fallback names");
+                apply_fallback_names(chains);
+                return Ok(());
+            }
+        };
+
+        // Call listcurrencies on VRSC mainnet to get PBaaS chain names
+        match client.call::<serde_json::Value>("listcurrencies", json!([{"systemtype": "pbaas"}])).await {
+            Ok(result) => {
+                eprintln!("Successfully called listcurrencies on VRSC mainnet");
+
+                // Build currencyidhex -> name lookup map
+                let mut name_map = HashMap::new();
+                if let Some(currency_list) = result.as_array() {
+                    for currency in currency_list {
+                        if let Some(def) = currency.get("currencydefinition") {
+                            let currencyidhex = def.get("currencyidhex")
+                                .and_then(|h| h.as_str());
+                            let name = def.get("name")
+                                .and_then(|n| n.as_str());
+
+                            if let (Some(hex), Some(n)) = (currencyidhex, name) {
+                                name_map.insert(hex.to_string(), n.to_string());
+                                eprintln!("Mapped {} -> {}", hex, n);
+                            }
+                        }
+                    }
+                }
+
+                // Apply friendly names from RPC response
+                for chain in chains.iter_mut() {
+                    if let Some(friendly_name) = name_map.get(&chain.name) {
+                        chain.display_name = friendly_name.clone();
+                        eprintln!("Set display_name for {} to {}", chain.name, friendly_name);
+                    } else {
+                        // Try fallback for chains not in RPC response
+                        if let Some(fallback_name) = get_fallback_display_name(&chain.name) {
+                            chain.display_name = fallback_name.to_string();
+                            eprintln!("Used fallback display_name for {}: {}", chain.name, fallback_name);
+                        }
+                        // Otherwise keep currencyidhex as display_name
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("listcurrencies RPC call failed: {}, using fallback names", e);
+                apply_fallback_names(chains);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Get VRSC mainnet credentials from discovered chains
+    fn get_vrsc_credentials(&self) -> Result<RpcCredentials, RpcError> {
+        self.discovered_chains
+            .iter()
+            .find(|c| c.name == "vrsc")
+            .map(|c| c.credentials.clone())
+            .ok_or_else(|| RpcError::Configuration("VRSC mainnet not found".to_string()))
+    }
+
     /// Test connectivity for all discovered chains
     pub async fn test_chain_connectivity(&mut self) -> Result<(), RpcError> {
         for chain in self.discovered_chains.iter_mut() {
             let connection_result = test_chain_connection(&chain.credentials).await;
             chain.is_active = connection_result.is_ok();
         }
-        
+
         Ok(())
     }
 
@@ -166,23 +250,12 @@ fn parse_config_file(config_path: &Path) -> Result<RpcCredentials, RpcError> {
     let port = rpc_port.unwrap_or_else(|| {
         if let Some(filename) = config_path.file_name().and_then(|f| f.to_str()) {
             match filename {
-                "VRSC.conf" => ChainConfig::default_port(&SupportedChain::Vrsc),
-                "vrsctest.conf" => ChainConfig::default_port(&SupportedChain::VrscTest),
+                "VRSC.conf" => ChainConfig::default_port("vrsc"),
+                "vrsctest.conf" => ChainConfig::default_port("vrsctest"),
                 _ => {
-                    // For PBaaS chains, try to identify by parent directory name (currencyidhex)
-                    if let Some(parent) = config_path.parent() {
-                        if let Some(chain_hash) = parent.file_name().and_then(|f| f.to_str()) {
-                            if let Some(chain_type) = identify_pbaas_chain(chain_hash) {
-                                ChainConfig::default_port(&chain_type)
-                            } else {
-                                27486 // Fallback to VRSC default
-                            }
-                        } else {
-                            27486 // Fallback to VRSC default
-                        }
-                    } else {
-                        27486 // Fallback to VRSC default
-                    }
+                    // For PBaaS chains, ports are dynamic and should be in config
+                    // If not specified, fallback to VRSC default
+                    27486
                 }
             }
         } else {
@@ -227,43 +300,54 @@ fn get_data_directory() -> Result<PathBuf, RpcError> {
     }
 }
 
-/// Get the Verus-specific data directory (.verus folder)
+/// Get the Verus-specific data directory (Verus/pbaas or .verus/pbaas folder)
 fn get_verus_data_directory() -> Result<PathBuf, RpcError> {
     #[cfg(target_os = "windows")]
     {
         dirs::data_dir()
-            .map(|dir| dir.join(".verus"))
+            .map(|dir| dir.join("Verus").join("pbaas"))
             .ok_or_else(|| RpcError::Configuration("Could not determine Windows AppData directory".to_string()))
     }
-    
+
     #[cfg(target_os = "macos")]
     {
         dirs::home_dir()
-            .map(|dir| dir.join("Library").join("Application Support").join(".verus"))
+            .map(|dir| dir.join("Library").join("Application Support").join("Verus").join("pbaas"))
             .ok_or_else(|| RpcError::Configuration("Could not determine macOS Application Support directory".to_string()))
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         dirs::home_dir()
-            .map(|dir| dir.join(".verus"))
+            .map(|dir| dir.join(".verus").join("pbaas"))
             .ok_or_else(|| RpcError::Configuration("Could not determine Linux home directory".to_string()))
     }
-    
+
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {
         Err(RpcError::Configuration("Unsupported operating system".to_string()))
     }
 }
 
-/// Identify which supported PBaaS chain a hash corresponds to
-fn identify_pbaas_chain(chain_hash: &str) -> Option<SupportedChain> {
-    // Use actual currencyidhex values from the Verus network
-    match chain_hash {
-        "e9e10955b7d16031e3d6f55d9c908a038e3ae47d" => Some(SupportedChain::Varrr),
-        "53fe39eea8c06bba32f1a4e20db67e5524f0309d" => Some(SupportedChain::Vdex),
-        "f315367528394674d45277e369629605a1c3ce9f" => Some(SupportedChain::Chips),
-        _ => None, // Unknown PBaaS chain
+/// Apply fallback names to PBaaS chains when RPC is unavailable
+fn apply_fallback_names(chains: &mut [ChainConfig]) {
+    for chain in chains.iter_mut() {
+        if let Some(fallback_name) = get_fallback_display_name(&chain.name) {
+            chain.display_name = fallback_name.to_string();
+        }
+        // Otherwise keep currencyidhex as display_name
+    }
+}
+
+/// Get fallback display name for known mainnet PBaaS chains
+/// This is used ONLY when VRSC mainnet is offline or RPC fails
+fn get_fallback_display_name(currencyidhex: &str) -> Option<&'static str> {
+    // ONLY mainnet PBaaS chains - NO testnet chains
+    match currencyidhex {
+        "e9e10955b7d16031e3d6f55d9c908a038e3ae47d" => Some("VARRR"),
+        "53fe39eea8c06bba32f1a4e20db67e5524f0309d" => Some("VDEX"),
+        "f315367528394674d45277e369629605a1c3ce9f" => Some("CHIPS"),
+        _ => None,
     }
 }
 
@@ -277,50 +361,52 @@ async fn test_chain_connection(credentials: &RpcCredentials) -> Result<(), RpcEr
 
 /// Chain configuration utilities
 impl ChainConfig {
-    /// Get the default RPC port for a chain type
-    pub fn default_port(chain: &SupportedChain) -> u16 {
-        match chain {
-            SupportedChain::Vrsc => 27486,
-            SupportedChain::VrscTest => 18843, 
-            SupportedChain::Varrr => 9333,    // Example port
-            SupportedChain::Vdex => 9334,     // Example port  
-            SupportedChain::Chips => 9335,    // Example port
+    /// Get the default RPC port for a chain name
+    pub fn default_port(chain_name: &str) -> u16 {
+        match chain_name {
+            "vrsc" => 27486,
+            "vrsctest" => 18843,
+            // PBaaS chains have dynamic ports defined in their config files
+            _ => 27486, // Fallback to VRSC default
         }
     }
 
     /// Get the configuration directory path for a chain (OS-aware)
-    pub fn config_directory(chain: &SupportedChain) -> Result<PathBuf, RpcError> {
-        let data_dir = get_data_directory()?;
-        
-        let path = match chain {
-            SupportedChain::Vrsc => data_dir.join("VRSC"),
-            SupportedChain::VrscTest => data_dir.join("vrsctest"),
-            // PBaaS chains would need their specific hash paths
-            _ => return Err(RpcError::Configuration(
-                "PBaaS chain config paths need specific hash".to_string()
-            )),
-        };
-
-        Ok(path)
+    pub fn config_directory(chain_name: &str) -> Result<PathBuf, RpcError> {
+        match chain_name {
+            "vrsc" => {
+                let data_dir = get_data_directory()?;
+                Ok(data_dir.join("VRSC"))
+            }
+            "vrsctest" => {
+                let data_dir = get_data_directory()?;
+                Ok(data_dir.join("vrsctest"))
+            }
+            _ => {
+                // For PBaaS chains, use currencyidhex as directory name in .verus
+                let verus_dir = get_verus_data_directory()?;
+                Ok(verus_dir.join(chain_name))
+            }
+        }
     }
 
     /// Get human-readable expected paths for debugging
     pub fn get_expected_paths() -> String {
         #[cfg(target_os = "windows")]
         {
-            "%AppData%\\Roaming\\Komodo\\VRSC\\vrsc.conf\n%AppData%\\Roaming\\Komodo\\vrsctest\\vrsctest.conf".to_string()
+            "%AppData%\\Roaming\\Komodo\\VRSC\\VRSC.conf\n%AppData%\\Roaming\\Komodo\\vrsctest\\vrsctest.conf\n%AppData%\\Roaming\\.verus\\{currencyidhex}\\{currencyidhex}.conf".to_string()
         }
-        
+
         #[cfg(target_os = "macos")]
         {
-            "~/Library/Application Support/Komodo/VRSC/vrsc.conf\n~/Library/Application Support/Komodo/vrsctest/vrsctest.conf".to_string()
+            "~/Library/Application Support/Komodo/VRSC/VRSC.conf\n~/Library/Application Support/Komodo/vrsctest/vrsctest.conf\n~/Library/Application Support/.verus/{currencyidhex}/{currencyidhex}.conf".to_string()
         }
-        
+
         #[cfg(target_os = "linux")]
         {
-            "~/.komodo/VRSC/vrsc.conf\n~/.komodo/vrsctest/vrsctest.conf".to_string()
+            "~/.komodo/VRSC/VRSC.conf\n~/.komodo/vrsctest/vrsctest.conf\n~/.verus/{currencyidhex}/{currencyidhex}.conf".to_string()
         }
-        
+
         #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
         {
             "Unsupported operating system".to_string()

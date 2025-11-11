@@ -128,8 +128,8 @@
         }));
         
         if (formData.rememberCredentials) {
-          await invoke("store_credentials", { 
-            chain_name: "manual",
+          await invoke("store_credentials", {
+            chainName: chainName.toLowerCase(),
             username: credentials.username,
             password: credentials.password,
             host: credentials.host,
@@ -191,7 +191,7 @@
       // Store credentials if user requested
       if (formData.rememberCredentials) {
         await invoke("store_credentials", {
-          chain_name: "manual",
+          chainName: connection.chainName.toLowerCase(),
           username: formData.username,
           password: formData.password,
           host: formData.host,
@@ -571,7 +571,7 @@
               class="w-full p-4 border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg hover:bg-verusidx-mountain-mist/20 dark:hover:bg-verusidx-mountain-blue/20 disabled:opacity-50 text-left flex justify-between items-center transition-all duration-200"
             >
               <div>
-                  <div class="font-medium text-verusidx-stone-dark dark:text-white">{chain.name}</div>
+                  <div class="font-medium text-verusidx-stone-dark dark:text-white">{chain.display_name}</div>
                   <div class="text-sm text-verusidx-mountain-grey dark:text-verusidx-mountain-mist">{chain.credentials.host}:{chain.credentials.port}</div>
               </div>
               <div class="text-sm {chain.is_active ? 'text-verusidx-turquoise-bright' : 'text-verusidx-mountain-mist'}">

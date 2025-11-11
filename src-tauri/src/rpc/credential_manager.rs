@@ -1,5 +1,5 @@
 // Secure Credential Management using OS Keychain
-use crate::rpc::{RpcCredentials, RpcError, SupportedChain};
+use crate::rpc::{RpcCredentials, RpcError};
 use keyring::Entry;
 use serde::{Serialize, Deserialize};
 
@@ -25,11 +25,16 @@ impl CredentialManager {
 
     /// Store credentials securely in OS keychain
     pub fn store_credentials(
-        &self, 
-        chain: &SupportedChain, 
+        &self,
+        chain_name: &str,
         credentials: &RpcCredentials
     ) -> Result<(), RpcError> {
-        let account_name = self.get_account_name(chain);
+        // Validate chain name format
+        if !is_valid_chain_name(chain_name) {
+            return Err(RpcError::Configuration("Invalid chain name format".to_string()));
+        }
+
+        let account_name = self.get_account_name(chain_name);
         let entry = Entry::new(&self.service_name, &account_name)
             .map_err(|e| RpcError::Configuration(format!("Failed to create keyring entry: {}", e)))?;
 
@@ -51,10 +56,10 @@ impl CredentialManager {
 
     /// Load credentials securely from OS keychain
     pub fn load_credentials(
-        &self, 
-        chain: &SupportedChain
+        &self,
+        chain_name: &str
     ) -> Result<RpcCredentials, RpcError> {
-        let account_name = self.get_account_name(chain);
+        let account_name = self.get_account_name(chain_name);
         let entry = Entry::new(&self.service_name, &account_name)
             .map_err(|e| RpcError::Configuration(format!("Failed to create keyring entry: {}", e)))?;
 
@@ -74,10 +79,10 @@ impl CredentialManager {
 
     /// Clear stored credentials from OS keychain
     pub fn clear_credentials(
-        &self, 
-        chain: &SupportedChain
+        &self,
+        chain_name: &str
     ) -> Result<(), RpcError> {
-        let account_name = self.get_account_name(chain);
+        let account_name = self.get_account_name(chain_name);
         let entry = Entry::new(&self.service_name, &account_name)
             .map_err(|e| RpcError::Configuration(format!("Failed to create keyring entry: {}", e)))?;
 
@@ -88,8 +93,8 @@ impl CredentialManager {
     }
 
     /// Check if credentials exist for a chain
-    pub fn has_credentials(&self, chain: &SupportedChain) -> bool {
-        let account_name = self.get_account_name(chain);
+    pub fn has_credentials(&self, chain_name: &str) -> bool {
+        let account_name = self.get_account_name(chain_name);
         if let Ok(entry) = Entry::new(&self.service_name, &account_name) {
             entry.get_password().is_ok()
         } else {
@@ -97,25 +102,11 @@ impl CredentialManager {
         }
     }
 
-    /// List all chains that have stored credentials
-    pub fn list_stored_chains(&self) -> Vec<SupportedChain> {
-        vec![
-            SupportedChain::Vrsc,
-            SupportedChain::VrscTest,
-            SupportedChain::Varrr,
-            SupportedChain::Vdex,
-            SupportedChain::Chips,
-        ]
-        .into_iter()
-        .filter(|chain| self.has_credentials(chain))
-        .collect()
-    }
-
     /// Temporarily store credentials in memory for session use
     /// This is used when credentials are loaded from config files
     pub fn cache_session_credentials(
         &self,
-        _chain: &SupportedChain,
+        _chain_name: &str,
         credentials: &RpcCredentials
     ) -> Result<(), RpcError> {
         // For session-only storage, we could use a different approach
@@ -137,9 +128,16 @@ impl CredentialManager {
         Ok(())
     }
 
-    fn get_account_name(&self, chain: &SupportedChain) -> String {
-        format!("verusidx-{}", chain.to_string())
+    fn get_account_name(&self, chain_name: &str) -> String {
+        format!("verusidx-{}", chain_name.to_lowercase())
     }
+}
+
+/// Validate chain name format (alphanumeric + hyphens/underscores)
+fn is_valid_chain_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 64
+        && name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_')
 }
 
 /// Credential validation utilities

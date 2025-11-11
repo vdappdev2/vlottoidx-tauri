@@ -35,16 +35,3 @@ export interface Identity {
   status: string;
   version: number;
 }
-
-export type SupportedChain = 'vrsc' | 'vrsctest' | 'varrr' | 'vdex' | 'chips';
-
-export interface ChainConfig {
-  name: SupportedChain;
-  credentials: {
-    username: string;
-    password: string;
-    host: string;
-    port: number;
-  };
-  is_active: boolean;
-}

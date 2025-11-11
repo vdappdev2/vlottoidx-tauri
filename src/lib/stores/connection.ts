@@ -11,6 +11,7 @@ export interface RpcConnection {
 
 export interface ChainConfig {
   name: string;
+  display_name: string;
   credentials: {
     host: string;
     port: number;

@@ -1,7 +1,7 @@
 // Tauri command handlers
 // These functions are called from the frontend
 
-use crate::rpc::{VerusRpcClient, RpcCredentials, ChainConfig, SupportedChain, ChainDiscovery, CredentialManager, CurrencyDefinition};
+use crate::rpc::{VerusRpcClient, RpcCredentials, ChainConfig, ChainDiscovery, CredentialManager, CurrencyDefinition};
 use serde_json::{json, Value};
 use tauri::State;
 use std::sync::Arc;
@@ -517,15 +517,6 @@ pub async fn store_credentials(
     host: String,
     port: u16
 ) -> Result<bool, String> {
-    let chain = match chain_name.as_str() {
-        "vrsc" => SupportedChain::Vrsc,
-        "vrsctest" => SupportedChain::VrscTest,
-        "varrr" => SupportedChain::Varrr,
-        "vdex" => SupportedChain::Vdex,
-        "chips" => SupportedChain::Chips,
-        _ => return Err("Unsupported chain".to_string()),
-    };
-
     let credentials = RpcCredentials {
         username,
         password,
@@ -538,7 +529,7 @@ pub async fn store_credentials(
         .map_err(|e| e.to_string())?;
 
     let cred_manager = CredentialManager::new();
-    cred_manager.store_credentials(&chain, &credentials)
+    cred_manager.store_credentials(&chain_name.to_lowercase(), &credentials)
         .map_err(|e| e.to_string())?;
 
     Ok(true)
@@ -546,17 +537,8 @@ pub async fn store_credentials(
 
 #[tauri::command]
 pub async fn load_credentials(chain_name: String) -> Result<Value, String> {
-    let chain = match chain_name.as_str() {
-        "vrsc" => SupportedChain::Vrsc,
-        "vrsctest" => SupportedChain::VrscTest,
-        "varrr" => SupportedChain::Varrr,
-        "vdex" => SupportedChain::Vdex,
-        "chips" => SupportedChain::Chips,
-        _ => return Err("Unsupported chain".to_string()),
-    };
-
     let cred_manager = CredentialManager::new();
-    match cred_manager.load_credentials(&chain) {
+    match cred_manager.load_credentials(&chain_name.to_lowercase()) {
         Ok(credentials) => {
             // Return credentials but redact the password for security
             let safe_creds = serde_json::json!({
@@ -573,28 +555,11 @@ pub async fn load_credentials(chain_name: String) -> Result<Value, String> {
 
 #[tauri::command]
 pub async fn clear_credentials(chain_name: String) -> Result<bool, String> {
-    let chain = match chain_name.as_str() {
-        "vrsc" => SupportedChain::Vrsc,
-        "vrsctest" => SupportedChain::VrscTest,
-        "varrr" => SupportedChain::Varrr,
-        "vdex" => SupportedChain::Vdex,
-        "chips" => SupportedChain::Chips,
-        _ => return Err("Unsupported chain".to_string()),
-    };
-
     let cred_manager = CredentialManager::new();
-    cred_manager.clear_credentials(&chain)
+    cred_manager.clear_credentials(&chain_name.to_lowercase())
         .map_err(|e| e.to_string())?;
 
     Ok(true)
-}
-
-#[tauri::command]
-pub async fn list_stored_chains() -> Result<Value, String> {
-    let cred_manager = CredentialManager::new();
-    let chains = cred_manager.list_stored_chains();
-    let chain_names: Vec<String> = chains.iter().map(|c| c.to_string().to_string()).collect();
-    Ok(serde_json::to_value(chain_names).unwrap())
 }
 
 #[tauri::command]

@@ -10,29 +10,9 @@ pub struct RpcCredentials {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SupportedChain {
-    Vrsc,
-    VrscTest,
-    Varrr,
-    Vdex,
-    Chips,
-}
-
-impl SupportedChain {
-    pub fn to_string(&self) -> &'static str {
-        match self {
-            SupportedChain::Vrsc => "vrsc",
-            SupportedChain::VrscTest => "vrsctest",
-            SupportedChain::Varrr => "varrr",
-            SupportedChain::Vdex => "vdex",
-            SupportedChain::Chips => "chips",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChainConfig {
-    pub name: SupportedChain,
+    pub name: String,              // Chain identifier (currencyidhex for PBaaS, "vrsc"/"vrsctest" for main chains)
+    pub display_name: String,      // Friendly name for display in UI
     pub credentials: RpcCredentials,
     pub is_active: bool,
 }
