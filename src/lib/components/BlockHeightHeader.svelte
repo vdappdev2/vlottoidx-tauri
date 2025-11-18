@@ -1,6 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { connectionStore, getChainParam, type ChainConfig, type ConnectionState } from "$lib/stores/connection";
+  import { connectionStore, getChainParam, getChainDisplayName, type ChainConfig, type ConnectionState } from "$lib/stores/connection";
   import { onDestroy } from "svelte";
 
   let blockHeight = $state<number | null>(null);
@@ -219,7 +219,7 @@
           >
             {#each connectionState.availableChains as chain}
               <option value={chain.name} class="bg-white dark:bg-verusidx-stone-dark">
-                {chain.name.toUpperCase()} {chain.is_active ? '🟢' : '🔴'}
+                {chain.display_name} {chain.is_active ? '🟢' : '🔴'}
               </option>
             {/each}
           </select>
@@ -231,7 +231,7 @@
         {:else}
           <!-- Static display when only one chain or loading -->
           <span class="font-medium text-verusidx-stone-dark dark:text-white">
-            {connectionState.selectedChain?.toUpperCase() || connectionState?.current?.chainName?.toUpperCase() || 'Unknown'}
+            {getChainDisplayName(connectionState, connectionState.selectedChain)}
             {#if isLoadingChains}
               <span class="text-xs text-verusidx-mountain-grey dark:text-verusidx-mountain-mist ml-1">(Loading chains...)</span>
             {/if}

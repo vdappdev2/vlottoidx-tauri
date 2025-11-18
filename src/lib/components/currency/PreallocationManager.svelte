@@ -80,7 +80,7 @@
           <div class="flex-1">
             <label class="block text-xs text-verusidx-mountain-grey dark:text-verusidx-mountain-mist mb-1">
               {#if isIdControlToken}
-                Recipient Address (ID@ or R-address)
+                Recipient Address (ID@ or i-address)
               {:else}
                 Address {index + 1}
               {/if}
@@ -89,7 +89,7 @@
               type="text" 
               value={preallocation.address}
               oninput={(e) => updateAddress(index, e.target.value)}
-              placeholder={isIdControlToken ? "alice@ or RXXXxxxXXX..." : "alice@ or RXXXxxxXXX..."}
+              placeholder={isIdControlToken ? "alice@ or iXXXxxxXXX..." : "alice@ or iXXXxxxXXX..."}
               required={isIdControlToken}
               class="w-full p-2 text-sm border border-verusidx-mountain-mist dark:border-verusidx-stone-medium rounded-lg bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white"
             />
@@ -152,11 +152,11 @@
       {#if isIdControlToken}
         <p class="text-xs text-verusidx-mountain-grey dark:text-verusidx-mountain-mist">
           ID Control Tokens must allocate exactly 0.00000001 (1 satoshi) to a single recipient. 
-          The holder of this token gains revoke/recover authority over the currency's root identity.
+          The holder of this token gains primary authority over the currency's namespace ID@.
         </p>
       {:else}
         <p class="text-xs text-verusidx-mountain-grey dark:text-verusidx-mountain-mist">
-          Preallocations distribute currency directly to specified addresses at launch. 
+          Preallocations distribute currency directly to specified recipients at launch. 
           For basket currencies, this lowers the reserve ratio.
         </p>
       {/if}

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { connectionStore, getChainParam, type ConnectionState } from "$lib/stores/connection";
+  import { connectionStore, getChainParam, getChainDisplayName, type ConnectionState } from "$lib/stores/connection";
   import { goto } from "$app/navigation";
   import { BlockHeightHeader, ExpandableCard } from "$lib/components";
   import { onMount, onDestroy } from "svelte";
@@ -253,7 +253,7 @@
           <div>
             <h1 class="text-3xl font-bold text-verusidx-stone-dark dark:text-white">VerusIDX Dashboard</h1>
             <p class="text-verusidx-mountain-grey dark:text-verusidx-mountain-mist">
-              Connected to {connectionState.current?.chainName} 
+              Connected to {getChainDisplayName(connectionState, connectionState.selectedChain)}
               ({connectionState.current?.host}:{connectionState.current?.port})
             </p>
           </div>
@@ -285,7 +285,7 @@
               <div class="space-y-3">
                 <div class="flex justify-between">
                   <span class="text-verusidx-mountain-grey dark:text-verusidx-mountain-mist">Chain:</span>
-                  <span class="font-medium text-verusidx-stone-dark dark:text-white">{systemInfo?.name || connectionState.selectedChain?.toUpperCase()}</span>
+                  <span class="font-medium text-verusidx-stone-dark dark:text-white">{systemInfo?.name || getChainDisplayName(connectionState, connectionState.selectedChain)}</span>
                 </div>
                 <div class="flex justify-between">
                   <span class="text-verusidx-mountain-grey dark:text-verusidx-mountain-mist">Blocks:</span>
@@ -309,7 +309,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div class="flex justify-between">
                     <span class="text-verusidx-mountain-grey dark:text-verusidx-mountain-mist">Chain:</span>
-                    <span class="font-medium text-verusidx-stone-dark dark:text-white">{systemInfo?.name || connectionState.selectedChain?.toUpperCase()}</span>
+                    <span class="font-medium text-verusidx-stone-dark dark:text-white">{systemInfo?.name || getChainDisplayName(connectionState, connectionState.selectedChain)}</span>
                   </div>
                   <div class="flex justify-between">
                     <span class="text-verusidx-mountain-grey dark:text-verusidx-mountain-mist">Version:</span>
@@ -377,7 +377,7 @@
 
         <!-- Wallet Balances Card -->
         {#if walletInfo}
-          <ExpandableCard title="{systemInfo?.name || connectionState.selectedChain?.toUpperCase() || 'Wallet'} Balances" cardClass="bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white" modalSize="md">
+          <ExpandableCard title="{systemInfo?.name || getChainDisplayName(connectionState, connectionState.selectedChain) || 'Wallet'} Balances" cardClass="bg-white dark:bg-verusidx-stone-dark text-verusidx-stone-dark dark:text-white" modalSize="md">
             <div slot="preview">
               <div class="space-y-3">
                 <div class="flex justify-between">

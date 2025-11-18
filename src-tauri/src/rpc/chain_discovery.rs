@@ -344,8 +344,8 @@ fn apply_fallback_names(chains: &mut [ChainConfig]) {
 fn get_fallback_display_name(currencyidhex: &str) -> Option<&'static str> {
     // ONLY mainnet PBaaS chains - NO testnet chains
     match currencyidhex {
-        "e9e10955b7d16031e3d6f55d9c908a038e3ae47d" => Some("VARRR"),
-        "53fe39eea8c06bba32f1a4e20db67e5524f0309d" => Some("VDEX"),
+        "e9e10955b7d16031e3d6f55d9c908a038e3ae47d" => Some("vARRR"),
+        "53fe39eea8c06bba32f1a4e20db67e5524f0309d" => Some("vDEX"),
         "f315367528394674d45277e369629605a1c3ce9f" => Some("CHIPS"),
         _ => None,
     }

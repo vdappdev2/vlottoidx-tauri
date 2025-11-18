@@ -18,14 +18,26 @@
     connectionState = state;
   });
 
+  // Detect if input is an i-address (identity address)
+  // i-addresses start with 'i' and use base58 encoding (excludes 0, O, I, l)
+  function isIAddress(input: string): boolean {
+    return /^i[a-km-zA-HJ-NP-Z1-9]{33,}$/.test(input);
+  }
+
   async function handleSearch() {
     if (!searchQuery.trim()) {
       searchError = "Please enter an identity name to search";
       return;
     }
 
-    // Format search query - ensure it has @ suffix if not already
-    const formattedQuery = searchQuery.trim().endsWith('@') ? searchQuery.trim() : `${searchQuery.trim()}@`;
+    const trimmedQuery = searchQuery.trim();
+
+    // Format search query based on input type:
+    // - i-addresses: pass as-is
+    // - Friendly names: ensure @ suffix
+    const formattedQuery = isIAddress(trimmedQuery)
+      ? trimmedQuery
+      : (trimmedQuery.endsWith('@') ? trimmedQuery : `${trimmedQuery}@`);
 
     isSearching = true;
     searchError = null;
@@ -34,8 +46,8 @@
     try {
       const chainParam = getChainParam(connectionState?.selectedChain);
       console.log("IdentitySearchCard: Searching for identity on chain:", connectionState?.selectedChain, "param:", chainParam);
-      
-      const result = await invoke("get_identity", { 
+
+      const result = await invoke("get_identity", {
         name: formattedQuery,
         chain: chainParam
       });
@@ -43,7 +55,7 @@
       console.log("IdentitySearchCard: get_identity result:", result);
       searchResults = result;
       hasSearched = true;
-      
+
       // Add to recent searches (avoid duplicates)
       if (!recentSearches.includes(formattedQuery)) {
         recentSearches = [formattedQuery, ...recentSearches.slice(0, 4)]; // Keep only 5 recent

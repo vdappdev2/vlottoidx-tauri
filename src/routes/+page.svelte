@@ -1,6 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { connectionStore, getChainParam, type ConnectionState } from "$lib/stores/connection";
+  import { connectionStore, getChainParam, getChainDisplayName, type ConnectionState } from "$lib/stores/connection";
   import { goto } from "$app/navigation";
   import ThemeToggle from "$lib/components/ThemeToggle.svelte";
 
@@ -388,7 +388,7 @@
           <div>
             <h2 class="text-2xl font-bold text-verusidx-stone-dark dark:text-white">Connected to Verus PBaaS</h2>
             <p class="text-verusidx-mountain-grey dark:text-verusidx-mountain-mist">
-              {connectionState.current.chainName} - {connectionState.current.host}:{connectionState.current.port}
+              {getChainDisplayName(connectionState, connectionState.selectedChain || connectionState.current.chainName)} - {connectionState.current.host}:{connectionState.current.port}
             </p>
           </div>
           <button 
