@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ExpandableCard } from "$lib/components/cards";
-  import { connectionStore } from "$lib/stores/connection";
+  import { connectionStore, getChainDisplayName } from "$lib/stores/connection";
   import { goto } from "$app/navigation";
 
   let connectionState = $state<any>(null);
@@ -25,7 +25,7 @@
     
     // Add native balance
     if (walletInfo.balance !== undefined) {
-      const chainName = connectionState?.current?.chainName || 'VRSC';
+      const chainName = getChainDisplayName(connectionState, connectionState.selectedChain);
       entries.push({
         currency: `${chainName} Balance`,
         amount: walletInfo.balance,
